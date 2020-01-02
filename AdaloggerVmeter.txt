@@ -1,0 +1,137 @@
+ADALOGGER AUTORANGING DC VOLTMETER
+
+FUN STUFF TO TRY
+
+   construct an auto - ranging voltmeter
+   design the hardware 
+   learn about State Machines
+   try out C language enumeration
+   explore that cosmic interface between software and hardware,
+      where thought becomes physical reality
+
+SCALING THE INPUT VOLTAGE DOWN TO 3V3
+
+   Found various ways to scale voltage input. ( See web link on Multimeter Design at the bottom of this file. )  
+
+   Chose the voltage scaling scheme using a 10 Meg input resistor ( R1 in a conventional voltage divider ), and four " bottom R2 " resistors, each switched into the circuit by a GPIO pin on the Adalogger.
+
+LESSONS LEARNED
+
+- Adalogger input impedance
+
+   10 Meg voltage divider input resistance was too high to get ADC readings.  Changed to 1 Meg for software development.  Later on, added a rail-to-rail voltage follower for high impedance input and low impedance output; this allowed using a 10 Meg input resistor.  Also added a filter before the ADC input.
+
+- 3V Zener isn’t
+
+   The Adalogger doesn't want to have more than 3V3 on any pin.  Problem: how to protect the ADC input from a higher voltage if it gets delivered in error from the voltage range portion of the circuit.
+
+   Zener diodes will clip any voltage higher than their rated voltage.  Discovered that is not the case for 3.3 V zeners.  Examination of the data sheet reveals a gradual reverse current slope as opposed to the sharp curve exhibited for higher voltage zeners.
+
+   A web search revealed a scheme using a rectifier diode as a clamp: the anode connects to the voltage to be limited, the cathode connects to a 3.3 volt source.  Using the 3.3 v on the Adalogger did not keep the anode side from going above 3.3; apparently the Adalogger's output impedance is too high.  Hooked up an external 3V source using a couple of 1.5 volt batteries.  When that appeared to work, I designed in a low - dropout regulator.
+
+-leaky solid state relays
+
+   Using some solid state relays left over from a previous project, first attempt was to use 4 of the relays, one on each " R2 " resistor.  The readings from the ADC made no sense at all.  Looked up the " off - state leakage " of the solid state relays; not good.  
+
+-old unreliable reed relays
+
+   Next tried using some left - over reed relays.  Exactly four relays were in the parts bin.  Wired up one side of each relay coil to 5V and the other side to the collector of an NPN transistor, emitter grounded, base thru a current limiting resistor to GPIO pins.  This sort of worked on two of the voltage ranges, but not the other two.  Eventually discovered that two of the relays had internal problems and would not switch.
+
+  A search revealed a readily available analog switch in a thru hole package: the  MAX4618CPE+, which has 1 nA off state leakage.
+
+  The analog switch worked.
+
+  I tried controlling four LEDs through the analog switch as a visual range indication, but then the voltage readings were no longer right.  Decided to use GPIO pins to light the LEDs.
+
+-hysteresis
+
+   Next, a most annoying problem arose.  The voltage range kept switching between 20 and 50 whenever the input voltage was near 20 volts.
+
+  A colleague suggested " hysteresis. "  Adjusted the lower end of the 50 volt range for less " overlap " with the 20 volt range.  Problem vanished.
+
+-how to “single step” and watch variables
+
+  The Arduino Integraged Development Environment ( IDE ) does not seem to have a handy feature which is available on some other IDEs:  " single stepping " and " watch variables ".  Yet another search revealed a method of having the running program pause and wait for the user to type a character into the serial monitor.  
+
+  Incorporated the idea into a function " waitForSerial() ".
+
+---0---
+void waitForSerial()
+  {
+  while (!Serial.available()) 
+    {
+    }
+  Serial.println(Serial.read());
+  }
+---0---
+
+  To watch a variable or two, the function "debugDisplay() " did the trick.
+
+---0---
+void debugDisplay()
+  {
+    Serial.print("DEBUGGING DISPLAY  | ");
+    Serial.print("ADC Reading: ");
+    Serial.print(Reading);
+    Serial.print(" | Vrange: ");
+    Serial.print(VRange);
+    Serial.println();
+    Serial.println("Hit any key to continue");
+    waitForSerial();
+  }
+---0---
+
+   Discovered the prototype plug board isn't all that great for mixing analog and digital signals.  When running the OLED display, there were always many ADC counts of instability.  When I ran the display power pins off the separate low drop out regulator ( wired directly, not through prototype bus connections ); the issue went away.
+
+   Upon laying out the printed circuit board, there was a fair amount of leftover space.  Just for fun, added a CDS photocell and resistor which can be wired into another Adalogger ADC input.  Also a tricolor RGB LED with appropriate current limiting resistors.  And a hole pattern for prototyping.  Nearby pins can supply 3V3, 5V, GND and two spare connections to the Adalogger.
+
+CALIBRATION
+
+  Connect up an external multimeter to the analog input to read Voltage In.  Adjust the " volts per ADC count " values to match the Adalogger display with that of the Voltmeter.
+
+  Each Voltage Range will probably end up with a slightly different value.
+
+AN EXERCISE FOR THE READER
+
+   Control the RGB led to produce every possible color in a visually pleasing pattern. 
+
+   Please email the solution to: drthom7@gmail.com.
+
+   Extra credit for not relying on a Google search ;-)
+
+BOARD SPIN NOTES
+
+   J1 and J2 silkscreen signal names get covered by wires.  Move J1 and J2 east, and place signal names to the west of J1 and J2.
+
+REFERENCES
+
+Multimeter Design
+lygte-info.dk/info/DMMDesign%20UK.html
+
+Voltage Divider Calculator
+www.ohmslawcalculator.com/voltage-divider-calculator
+
+LED Resistor Calculator
+www.ohmslawcalculator.com/led-resistor-calculator
+
+State Machines
+www.norwegiancreations.com/2017/03/state-machines-and-arduino-implementation/
+
+C Language Enumerations
+www.geeksforgeeks.org/enumeration-enum-c/
+
+Arduino Debugging
+www.circuito.io/blog/arduino-debugging/
+
+Calculators
+calculatoredge.com/
+
+Schematic Capture and Printed Circuit Layout
+www.kicad-pcb.org/
+
+Hardware Vendor
+www.digikey.com
+
+Inexpensive Printed Circuit Fabrication
+www.pcbway.com/
+jlcpcb.com/
